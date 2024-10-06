@@ -43,9 +43,7 @@ trfs = admm_mtrf.weights
 ```
 
 ## fast implementation for multi-sensor measurments
-We compare our implementation to the example provided by `NapLib` [here](https://naplib-python.readthedocs.io/en/latest/auto_examples/strf_fitting/plot_STRF_fitting_basics.html). The `NapLib` library fits the mTRF model separately for each sensor and uses the generic solver from scikit-learn for elastic net regularization.
-
-We show that
+We compare our implementation to the example provided by `NapLib` [here](https://naplib-python.readthedocs.io/en/latest/auto_examples/strf_fitting/plot_STRF_fitting_basics.html). The `NapLib` library fits the mTRF model separately for each sensor and uses the generic solver from scikit-learn for elastic net regularization.We show that ADMM_mTRF recovers the same TRFs in a fraction of the run-time from NapLib. 
 
 | Model Name | Training Time (sec) |
 |------------|---------------------|
