@@ -236,23 +236,29 @@ class admm_mTRF(TRF):
         instead of matrix inversion
         '''
         #set optimization param
-        opt_defaults = {'rho':0.01,
-                        'max_iter':5000,
+        opt_defaults = {'rho':1e-2,
+                        'max_iter':1000,
                         'verbose':True,
-                        'tol':1e-5}
+                        'tol':1e-4}
         for key, value in opt_defaults.items():
             if key not in opt_param:
                 opt_param[key] = value
-        rho, max_iter, verbose, tol = opt_param.values()
+        rho = opt_param['rho']
+        max_iter = opt_param['max_iter']
+        verbose = opt_param['verbose']
+        tol = opt_param['tol']
+        tol_rel = 1e-4
         self.fs = fs
         self.alpha = alpha
         self.l1_ratio = l1_ratio
         self.regularization = None
         self.tmin = tmin
         self.tmax = tmax
+
         # get cov
         lags = list(range(int(np.floor(tmin * fs)), int(np.ceil(tmax * fs)) + 1))
         cov_xx, cov_xy = covariance_matrices(x, y, lags, self.zeropad, preload=False)
+
         # setup regularization mat
         regmat = np.identity(cov_xx.shape[1])
         regmat[0,0] = 0.0
@@ -265,25 +271,34 @@ class admm_mTRF(TRF):
         w1 = solve_triangular(L.T, Q, lower=False)
         w2 = threshold(w1, thresh_val, mode='soft')
         u  = w1-w2
+        tol_abs = np.sqrt(w1.shape[0])*tol
         flag_tol_reached = False
         for itr in range(max_iter):
             Q = solve_triangular(L, cov_xy + rho*(w2-u), lower=True)
             w1 = solve_triangular(L.T, Q, lower=False)
+            w2_old = w2.copy()
             w2 = threshold(w1+u, thresh_val, mode='soft')
             u  = u+w1-w2
-            err = np.linalg.norm(w1-w2)/w1.shape[1]
-            if verbose:
-                if itr%500==0:
-                    print(f'itr:{itr:3d}, err:{err:1.3e}')
-            if err<=tol:
+            pri_err = np.linalg.norm(w1-w2)/w1.shape[1]
+            dul_err = rho * np.linalg.norm(w2-w2_old)/w2.shape[1]
+            pri_tol = tol_abs + tol_rel * np.max([np.linalg.norm(w1), np.linalg.norm(w2)])/w1.shape[1]
+            dul_tol = tol_abs + tol_rel * np.linalg.norm(u)/u.shape[1]
+            if pri_err >= 10.*dul_err:
+                rho = rho*2.0
+            if pri_err <= 10.*dul_err:
+                rho = rho/2.0
+            if itr%100==0:
+                print(f'itr:{itr:3d}, pri_err:{pri_err:1.3e}, dul_err:{dul_err:1.3e}, rho:{rho:1.3e}')
+            if pri_err<=pri_tol and dul_err<dul_tol:
                 flag_tol_reached = True
                 break
         if verbose:
+            print(f'itr:{itr:3d}, pri_err:{pri_err:1.3e}, dul_err:{dul_err:1.3e}, rho:{rho:1.3e}')
             print(f'done in {itr}, tol reached: {flag_tol_reached}')
         if flag_tol_reached:
             weight_matrix = w2 /(1/self.fs)
         else:
-            weight_matrix = w1 /(1/self.fs)
+            weight_matrix = w2 /(1/self.fs)
         self.bias = weight_matrix[0:1]
         if self.bias.ndim == 1:  # add empty dimension for single feature models
             self.bias = np.expand_dims(self.bias, axis=0)

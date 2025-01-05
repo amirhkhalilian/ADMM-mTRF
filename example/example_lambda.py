@@ -57,7 +57,7 @@ if __name__ == "__main__":
     data_train = data[:-1]
     data_test = data[-1:]
 
-    l1_ratios = [1e-6, 1e-4, 1e-3, 1e-2, 1e-1, 2e-1]
+    l1_ratios = [1e-6, 1e-4, 1e-3, 1e-2, 1e-1, 2e-1, 5e-1]
     fig, axes = plt.subplots(len(l1_ratios),2,figsize=(15,2.5))
 
     for ll, l1_ratio in enumerate(l1_ratios):
